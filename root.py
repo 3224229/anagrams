@@ -99,7 +99,11 @@ def merriam_strip(word):
     start_merriam_strip = time.time()
     url_merriam = 'https://www.merriam-webster.com/dictionary/' + str(word or '')
     raw_html = simple_get(url_merriam)
-    stripped_html = raw_html.decode()[0:30000]
+    try:
+        stripped_html = raw_html.decode()[0:30000]
+    except AttributeError:
+        return word
+
     html = BeautifulSoup(stripped_html, 'html.parser')
     root = html.find('h1', attrs={'class': "hword"}).text
 

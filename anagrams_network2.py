@@ -214,7 +214,7 @@ class banana(object):
         DISPLAYSURF.blit(textSurfaceObj, textRectObj)
 
 
-    def __check_steal(self, candidate, merriam_candidate, word_dict, is_opponent):
+    def __check_steal(self, candidate, etyms_candidate, word_dict, is_opponent):
         # Check whether a steal happens
         # Input a candidate word (i.e. guess), its merriam stripped version,
         # a dictionary with the words to take from (plus their merriam stripped versions) and
@@ -233,25 +233,16 @@ class banana(object):
                 if not self.__superset(self.current, self.__subtract(candidate, word)):
                     event_type = 'tiles'
                 else:
-                    merriam_word = word_dict[word]
-
-                    # Look up the etymologies of both candidate and current word
-                    root_candidate = root.lookup(merriam_candidate)
-                    root_word = root.lookup(merriam_word)
-                    # merriam_root_check = root.merriam_root_check(candidate, word)
+                    etyms_word = word_dict[word]
 
                     try:
                         # Check for any common roots. If etymonline returns nothing, then assume there are no
                         # common roots
-                        root_overlap = any(x in root_candidate for x in root_word)
+                        root_overlap = any(x in etyms_candidate for x in etyms_word)
                     except TypeError:
                         root_overlap = False
 
-                    # If either one has no roots, we can't do the root comparison, so just check if their
-                    # merriam-stripped versions are the same (plan B check).
-                    if (root_candidate is None or root_word is None) and (merriam_candidate == merriam_word):
-                        event_type = 'trivial'
-                    elif root_overlap or (merriam_candidate == merriam_word):
+                    if root_overlap:
                         event_type = 'trivial'
                     else:
                         event_type = 'steal'
@@ -286,7 +277,7 @@ class banana(object):
         if len(candidate) < 10:
             is_word = twl.check(candidate.lower())
         else:
-            is_word = root.merriam_word_check(candidate)
+            is_word = api.get_word_data(candidate)
         if not is_word:
             # self.__display_text("Not a word!", 200, 400)
             self.previous_guess = self.guess
@@ -297,11 +288,10 @@ class banana(object):
         error_trivial_extension = False
         error_tiles = False
 
-        # Get the merriam stripped version of the guess (e.g. TRAINED --> TRAIN)
-        merriam_candidate = root.merriam_strip(candidate)
+        etyms_candidate = api.get_etym(candidate)
 
         # Check if can take the other player's words (not checking middle steal)
-        is_taken, event_type, taken_word, taken_i = self.__check_steal(candidate, merriam_candidate, self.player2words, True)
+        is_taken, event_type, taken_word, taken_i = self.__check_steal(candidate, etyms_candidate, self.player2words, True)
 
         if is_taken:
             # Get time of this steal
@@ -315,7 +305,7 @@ class banana(object):
                 del self.player2words[taken_word]
                 self.player2words_list.remove(taken_word)
 
-                self.playerwords.update({candidate: merriam_candidate})
+                self.playerwords.update({candidate: etyms_candidate})
                 self.playerwords_list.append(candidate)
 
                 # Figure out what tiles are used from the middle and remove those from self.current
@@ -340,7 +330,7 @@ class banana(object):
 
         # if could not take the other player's words, check if can take one's own
         if not is_taken:
-            self_is_taken, event_type, taken_word, taken_i = self.__check_steal(candidate, merriam_candidate, self.playerwords, False)
+            self_is_taken, event_type, taken_word, taken_i = self.__check_steal(candidate, etyms_candidate, self.playerwords, False)
 
             if self_is_taken:
                 self.last_update = datetime.datetime.now()
@@ -349,7 +339,7 @@ class banana(object):
                     candidate_list = list(candidate)
 
                     del self.playerwords[taken_word]
-                    self.playerwords.update({candidate: merriam_candidate})
+                    self.playerwords.update({candidate: etyms_candidate})
 
                     self.playerwords_list[taken_i] = candidate
 
@@ -368,7 +358,7 @@ class banana(object):
 
                     for letter in candidate_list:
                         self.current.remove(letter)
-                    self.playerwords.update({candidate: merriam_candidate})
+                    self.playerwords.update({candidate: etyms_candidate})
                     self.playerwords_list.append(candidate)
 
                     self.previous_guess = self.guess
@@ -376,8 +366,6 @@ class banana(object):
                     self.fresh_take = True
                     self.pre_take_word = taken_word
                     self.middle_used = candidate_list
-
-
 
                 elif error_trivial_extension:
                     self.previous_guess = self.guess
